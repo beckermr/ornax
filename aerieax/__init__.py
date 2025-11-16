@@ -3,5 +3,4 @@ try:
 except ImportError:
     __version__ = None
 
-
 from . import hmc  # noqa: F401
