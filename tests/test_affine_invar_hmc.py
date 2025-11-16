@@ -1,3 +1,4 @@
+import jax
 import jax.numpy as jnp
 import jax.random as jrng
 import numpy as np
@@ -30,15 +31,22 @@ def test_ensemble_hmc_smoke():
     print("mean|std|acc:", chain.mean(), chain.std(), acc.mean())
 
     assert acc.mean() > 0.9
-    assert np.allclose(
+    np.testing.assert_allclose(
         chain.mean(),
         2.0,
         rtol=0.01,
         atol=0,
     )
-    assert np.allclose(
+    np.testing.assert_allclose(
         chain.std(),
         1.25,
         rtol=0.01,
+        atol=0,
+    )
+
+    np.testing.assert_allclose(
+        loglike,
+        jax.vmap(jax.vmap(_log_like))(chain),
+        rtol=1e-6,
         atol=0,
     )
