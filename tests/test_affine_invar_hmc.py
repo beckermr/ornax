@@ -3,10 +3,13 @@ import jax.numpy as jnp
 import jax.random as jrng
 import numpy as np
 
+import pytest
+
 from aerieax.hmc import ensemble_hmc
 
 
-def test_ensemble_hmc_smoke():
+@pytest.mark.parametrize("n_dims", [1, 2, 10])
+def test_ensemble_hmc_smoke(n_dims):
     rng_key = jrng.key(10)
 
     def _log_like(x, sigma=1.25, mu=2):
@@ -19,14 +22,16 @@ def test_ensemble_hmc_smoke():
     chain, acc, loglike = ensemble_hmc(
         rng_key,
         _log_like,
-        n_dims=2,
+        n_dims=n_dims,
         n_samples=10000,
         verbose=False,
     )
 
-    assert chain.shape == (10000, 10, 2)
-    assert acc.shape == (10000, 10)
-    assert loglike.shape == (10000, 10)
+    n_walkers = max(2 * n_dims, 10)
+
+    assert chain.shape == (10000, n_walkers, n_dims)
+    assert acc.shape == (10000, n_walkers)
+    assert loglike.shape == (10000, n_walkers)
 
     print("mean|std|acc:", chain.mean(), chain.std(), acc.mean())
 
