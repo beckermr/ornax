@@ -5,7 +5,7 @@ import numpy as np
 
 import pytest
 
-from aerieax.hmc import ensemble_hmc
+from eyrieax.hmc import ensemble_hmc
 
 
 @pytest.mark.parametrize("n_dims", [1, 2, 10])

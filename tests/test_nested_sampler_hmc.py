@@ -7,7 +7,7 @@ import scipy as sp
 
 import pytest
 
-from aerieax.nested_sampling import nested_sampler_hmc
+from eyrieax.nested_sampling import nested_sampler_hmc
 
 
 @pytest.mark.parametrize("n_dims", [1, 2])

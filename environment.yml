@@ -1,4 +1,4 @@
-name: aerieax
+name: eyrieax
 channels:
   - conda-forge
 dependencies:
