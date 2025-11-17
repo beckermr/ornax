@@ -57,6 +57,7 @@ def test_nested_sampler_hmc_gauss_evidence(n_dims, mu, xmin, xmax):
         _prior_draw,
         n_dims,
         n_live,
+        verbose=False,
     )
 
     print("logZ|err|true:", logZ, delta_logZ, true_logZ)
@@ -107,6 +108,7 @@ def test_nested_sampler_hmc_gauss_stats():
         _prior_draw,
         n_dims,
         n_live,
+        verbose=False,
     )
 
     print("logZ|err|true:", logZ, delta_logZ, true_logZ)

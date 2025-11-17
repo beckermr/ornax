@@ -1,3 +1,4 @@
+import contextlib
 import functools
 import tqdm
 from typing import NamedTuple
@@ -259,6 +260,7 @@ def nested_sampler_hmc(
     leapfrog_step_size_hmc=None,
     n_leapfrog_steps_hmc=None,
     n_conv_check=10,
+    verbose=True,
 ):
     """Run nested sampling.
 
@@ -296,6 +298,8 @@ def nested_sampler_hmc(
         The number of leapfrog steps to take. Default is `int(1/leapfrog_step_size)`.
     n_conv_check : int, optional
         How often to check convergence. Default is every 10 iterations.
+    verbose : bool, optional
+        If True, print progress. Default is True.
 
     Returns
     -------
@@ -491,11 +495,16 @@ def nested_sampler_hmc(
         rng_key=rng_key,
     )
 
+    if verbose:
+        ctx = tqdm.trange(n_iter_max, ncols=80, desc="sampling")
+    else:
+        ctx = contextlib.nullcontext()
+
     curr_iter = 0
     n_scan_calls = n_iter_max // n_conv_check
     if n_scan_calls * n_conv_check < n_iter_max:
         n_scan_calls += 1
-    with tqdm.trange(n_iter_max, ncols=80, desc="sampling") as pbar:
+    with ctx as pbar:
         for _ in range(n_scan_calls):
             if n_conv_check + curr_iter > n_iter_max:
                 _n_to_do = n_iter_max - curr_iter
@@ -505,8 +514,9 @@ def nested_sampler_hmc(
             # we won't have enough room for the live points after this iteration
             # so we break
             if ns_data.n_iter_max - ns_data.n_iter < ns_data.n_live + _n_to_do:
-                pbar.total = int(ns_data.n_iter)
-                pbar.refresh()
+                if verbose:
+                    pbar.total = int(ns_data.n_iter)
+                    pbar.refresh()
                 break
 
             ns_data, _ = jax.lax.scan(
@@ -514,21 +524,24 @@ def nested_sampler_hmc(
                 ns_data,
                 length=_n_to_do,
             )
-            pbar.update(_n_to_do)
+            if verbose:
+                pbar.update(_n_to_do)
             curr_iter += _n_to_do
 
             new_conv_total = jnp.int_(
                 ns_data.n_iter_conv_fac * ns_data.n_live * ns_data.H
             )
 
-            pbar.total = int(new_conv_total)
-            pbar.set_description("sampling (logZ: %.5e)" % (ns_data.logZ,))
-            pbar.refresh()
+            if verbose:
+                pbar.total = int(new_conv_total)
+                pbar.set_description("sampling (logZ: %.5e)" % (ns_data.logZ,))
+                pbar.refresh()
 
             # convergence
             if ns_data.n_iter > new_conv_total:
-                pbar.total = int(ns_data.n_iter)
-                pbar.refresh()
+                if verbose:
+                    pbar.total = int(ns_data.n_iter)
+                    pbar.refresh()
                 break
 
     # truncate the sample points to length n_iter + n_live
