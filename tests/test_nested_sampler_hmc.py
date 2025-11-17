@@ -1,5 +1,6 @@
 import math
 
+import jax
 import jax.numpy as jnp
 import jax.random as jrng
 import jax.nn as jnn
@@ -53,6 +54,7 @@ def test_nested_sampler_hmc_gauss_evidence(n_dims, mu, xmin, xmax):
     rng_key = jrng.PRNGKey(seed=21)
     n_live = 100
 
+    print("\n", end="", flush=True)
     (logZ, delta_logZ, samps, logw, loglike, ns_data) = nested_sampler_hmc(
         rng_key,
         _log_like,
@@ -60,7 +62,7 @@ def test_nested_sampler_hmc_gauss_evidence(n_dims, mu, xmin, xmax):
         _prior_draw,
         n_dims,
         n_live,
-        verbose=False,
+        verbose=True,
     )
 
     print("logZ|err|true:", logZ, delta_logZ, true_logZ)
@@ -104,6 +106,7 @@ def test_nested_sampler_hmc_gauss_stats():
     rng_key = jrng.PRNGKey(seed=21)
     n_live = 1000
 
+    print("\n", end="", flush=True)
     (logZ, delta_logZ, samps, logw, loglike, ns_data) = nested_sampler_hmc(
         rng_key,
         _log_like,
@@ -111,7 +114,7 @@ def test_nested_sampler_hmc_gauss_stats():
         _prior_draw,
         n_dims,
         n_live,
-        verbose=False,
+        verbose=True,
     )
 
     print("logZ|err|true:", logZ, delta_logZ, true_logZ)
@@ -169,6 +172,7 @@ def test_nested_sampler_hmc_gauss_evidence_transform(n_dims, mu, xmin, xmax):
     rng_key = jrng.PRNGKey(seed=21)
     n_live = 100
 
+    print("\n", end="", flush=True)
     (logZ, delta_logZ, samps, logw, loglike, ns_data) = nested_sampler_hmc(
         rng_key,
         _log_like,
@@ -177,19 +181,105 @@ def test_nested_sampler_hmc_gauss_evidence_transform(n_dims, mu, xmin, xmax):
         n_dims,
         n_live,
         prior_domain=jnp.array([[xmin, xmax]] * n_dims),
-        verbose=False,
+        verbose=True,
     )
 
     print("logZ|err|true:", logZ, delta_logZ, true_logZ)
     assert np.abs(logZ - true_logZ) < 3.0 * delta_logZ
 
 
-@pytest.mark.parametrize("vals,tvals", [
-    (((np.inf,),), ((math.inf,),)),
-    (((jnp.inf,),), ((math.inf,),)),
-    (((-np.inf, -jnp.inf),), ((-math.inf, -math.inf),)),
-    (((-2, 5), (-np.inf, -jnp.inf),), ((-2, 5), (-math.inf, -math.inf),)),
-])
+def test_nested_sampler_hmc_gauss_evidence_transform_mixed():
+    n_dims = 2
+    mu = 0.5
+    xmin = -2
+    xmax = 3
+    xmin_auto = -3
+    xmax_auto = 2
+
+    def _transform(x):
+        return jnp.array(
+            [
+                (xmax - xmin) * jnn.sigmoid(x[0]) + xmin,
+                x[1],
+            ]
+        )
+
+    def _inv_transform(y):
+        x = (y[0] - xmin) / (xmax - xmin)
+        return jnp.array(
+            [
+                jsp.special.logit(x),
+                y[1],
+            ]
+        )
+
+    def _log_like(x, sigma=1):
+        y = _transform(x)
+        return -jnp.sum(
+            0.5 * (y - mu) ** 2 / sigma**2
+            + jnp.log(sigma)
+            + 0.5 * jnp.log(2.0 * jnp.pi)
+        )
+
+    def _log_prior(x):
+        sx = jnn.log_sigmoid(x[0])
+        return jnp.sum(2 * sx - x[0]) - jnp.log(xmax - xmin)
+
+    @jax.jit
+    def _prior_draw(rng_key):
+        y = jrng.uniform(rng_key, shape=(n_dims,), minval=0, maxval=1)
+        y = jnp.array(
+            [
+                (xmax - xmin) * y[0] + xmin,
+                (xmax_auto - xmin_auto) * y[1] + xmin_auto,
+            ]
+        )
+        return _inv_transform(y)
+
+    true_logZ = np.log(
+        (sp.stats.norm.cdf(xmax - mu) - sp.stats.norm.cdf(xmin - mu)) / (xmax - xmin)
+    ) + np.log(
+        (sp.stats.norm.cdf(xmax_auto - mu) - sp.stats.norm.cdf(xmin_auto - mu))
+        / (xmax_auto - xmin_auto)
+    )
+
+    rng_key = jrng.PRNGKey(seed=21)
+    n_live = 100
+
+    print("\n", end="", flush=True)
+    (logZ, delta_logZ, samps, logw, loglike, ns_data) = nested_sampler_hmc(
+        rng_key,
+        _log_like,
+        _log_prior,
+        _prior_draw,
+        n_dims,
+        n_live,
+        prior_domain=jnp.array([[-jnp.inf, jnp.inf], [xmin_auto, xmax_auto]]),
+        verbose=True,
+    )
+
+    print("logZ|err|true:", logZ, delta_logZ, true_logZ)
+    assert np.abs(logZ - true_logZ) < 3.0 * delta_logZ
+
+
+@pytest.mark.parametrize(
+    "vals,tvals",
+    [
+        (((np.inf,),), ((math.inf,),)),
+        (((jnp.inf,),), ((math.inf,),)),
+        (((-np.inf, -jnp.inf),), ((-math.inf, -math.inf),)),
+        (
+            (
+                (-2, 5),
+                (-np.inf, -jnp.inf),
+            ),
+            (
+                (-2, 5),
+                (-math.inf, -math.inf),
+            ),
+        ),
+    ],
+)
 @pytest.mark.parametrize("as_array", [True, False])
 def test_nested_sampler_hmc_2d_array_to_nested_tuples(vals, tvals, as_array):
     if as_array:

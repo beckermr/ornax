@@ -246,10 +246,10 @@ def _min_two(arr):
 
 
 def _2d_array_to_nested_tuples(arr):
-    return tuple(
-        tuple(float(a) for a in aval)
-        for aval in arr
-    )
+    if arr is not None:
+        return tuple(tuple(float(a) for a in aval) for aval in arr)
+    else:
+        return None
 
 
 def _prior_domain_transforms(prior_domain, log_likelihood, log_prior):
@@ -308,11 +308,8 @@ def _prior_domain_transforms(prior_domain, log_likelihood, log_prior):
             tx = []
             for i in range(len(prior_domain)):
                 xmin, xmax = prior_domain[i]
-            tx = []
-            for i in range(len(prior_domain)):
-                xmin, xmax = prior_domain[i]
                 if math.isfinite(xmin) and math.isfinite(xmax):
-                    tx.append(jsp.special.logit((x - xmin) / (xmax - xmin)))
+                    tx.append(jsp.special.logit((x[i] - xmin) / (xmax - xmin)))
                 else:
                     tx.append(x[i])
             return jnp.array(tx)
