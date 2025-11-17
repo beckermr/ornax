@@ -24,7 +24,7 @@ jobs:
       - uses: mamba-org/setup-micromamba@add3a49764cedee8ee24e82dfde87f5bc2914462 # v2.0.7
         with:
           environment-file: environment.yml
-          environment-name: aerieax
+          environment-name: eyrieax
           create-args: python=3.11
 
       - name: configure conda and install code
